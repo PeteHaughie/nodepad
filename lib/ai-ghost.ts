@@ -51,17 +51,40 @@ Return ONLY valid JSON:
 {"text": "...", "category": "..."}`
 
   const baseUrl = getBaseUrl(config)
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: getProviderHeaders(config),
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    }),
-  })
+  const normalizedBase = baseUrl.replace(/\/+$/, "")
+  const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
+  const tryEndpoints =
+    config.provider === "ollama" || isLocalBase
+      ? ["/api/ollama"]
+      : [
+          `${normalizedBase}/v1/chat/completions`,
+          `${normalizedBase}/chat/completions`,
+        ]
 
+  let response: Response | null = null
+  let lastError: unknown = null
+  for (const ep of tryEndpoints) {
+    try {
+      response = await fetch(ep, {
+        method: "POST",
+        headers: getProviderHeaders(config),
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+        }),
+      })
+      if (response) break
+    } catch (err) {
+      lastError = err
+      response = null
+    }
+  }
+
+  if (!response) {
+    throw new Error(`AI ghost error (${config.provider}): network error or no reachable endpoint. ${String(lastError ?? "")}`)
+  }
   if (!response.ok) {
     const err = await response.text()
     throw new Error(`AI ghost error (${config.provider}) ${response.status}: ${err}`)

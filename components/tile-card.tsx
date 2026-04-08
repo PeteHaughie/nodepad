@@ -133,9 +133,9 @@ export const TileCard = memo(function TileCard({
     })
   }, [block.timestamp, isMounted])
 
-  const config = CONTENT_TYPE_CONFIG[block.contentType]
-  const Icon = config.icon
-  const accent = config.accentVar
+  const config = CONTENT_TYPE_CONFIG[block.contentType] ?? CONTENT_TYPE_CONFIG.general
+  const Icon = config.icon ?? (() => null)
+  const accent = config.accentVar ?? "var(--type-general)"
   const isTask = block.contentType === "task"
 
   // Auto-size + focus for the main text editing textarea

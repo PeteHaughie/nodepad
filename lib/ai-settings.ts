@@ -12,7 +12,7 @@ export interface AIModel {
   groundingModelId?: string
 }
 
-export type AIProvider = "openrouter" | "openai" | "zai"
+export type AIProvider = "openrouter" | "openai" | "zai" | "ollama"
 
 export interface AIProviderPreset {
   id: AIProvider
@@ -43,6 +43,13 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     baseUrl: "https://api.z.ai/api/paas/v4",
     keyUrl: "https://z.ai/manage-apikey/apikey-list",
     keyPlaceholder: "Your Z.ai API key",
+  },
+  {
+    id: "ollama",
+    label: "Ollama (local)",
+    baseUrl: "http://localhost:11434",
+    keyUrl: "",
+    keyPlaceholder: "",
   },
 ]
 
@@ -203,7 +210,8 @@ export interface AIConfig {
 
 export function loadAIConfig(): AIConfig | null {
   const s = loadSettings()
-  if (!s.apiKey) return null
+  // Allow the local Ollama provider to be used without an API key
+  if (!s.apiKey && s.provider !== "ollama") return null
   const models = getModelsForProvider(s.provider)
   const model = models.find(m => m.id === s.modelId)
   // Use the matched model's id if found; otherwise fall back to the first model
@@ -220,13 +228,15 @@ export function loadAIConfig(): AIConfig | null {
 }
 
 export function getBaseUrl(config: AIConfig): string {
+  // Prefer an explicit customBaseUrl when set (useful for local Ollama instances)
+  if (config.customBaseUrl && config.customBaseUrl.trim() !== "") return config.customBaseUrl
   return getPreset(config.provider).baseUrl
 }
 
 export function getProviderHeaders(config: AIConfig): Record<string, string> {
-  const base: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${config.apiKey}`,
+  const base: Record<string, string> = { "Content-Type": "application/json" }
+  if (config.apiKey && config.apiKey.trim() !== "") {
+    base["Authorization"] = `Bearer ${config.apiKey}`
   }
   if (config.provider === "openrouter") {
     base["HTTP-Referer"] = "https://nodepad.space"

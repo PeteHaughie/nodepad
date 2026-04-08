@@ -25,6 +25,7 @@ import {
   getPreset,
   type AISettings,
   type AIProvider,
+  type AIModel,
 } from "@/lib/ai-settings"
 
 interface Project {
@@ -118,8 +119,59 @@ export function ProjectSidebar({
   }
 
   const currentPreset = getPreset(draft.provider)
-  const models = getModelsForProvider(draft.provider)
+  const [models, setModels] = useState<AIModel[]>(() => getModelsForProvider(draft.provider))
   const selectedModel = models.find(m => m.id === draft.modelId) || models[0] || undefined
+
+  useEffect(() => {
+    // Initialize from static list and fetch dynamic models for Ollama
+    setModels(getModelsForProvider(draft.provider))
+    let mounted = true
+    async function fetchOllamaModels() {
+      if (draft.provider !== "ollama") return
+      try {
+        console.log("Ollama: fetching models from", draft.customBaseUrl || "/api/ollama/models")
+        const res = await fetch("/api/ollama/models", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ baseUrl: draft.customBaseUrl }),
+        })
+        if (!mounted) return
+        console.log("Ollama: response status", res.status)
+        if (!res.ok) {
+          console.warn("Ollama: non-ok response", res.status)
+          return
+        }
+        const json = await res.json()
+        console.log("Ollama: raw models response", json)
+        const list = Array.isArray(json) ? json : json.models ?? json.data ?? []
+        console.log("Ollama: extracted list length", Array.isArray(list) ? list.length : 0)
+        const mapped = list.map((m: any) => {
+          const name = m?.name || m?.model || m?.id || String(m)
+          return {
+            id: name,
+            label: name,
+            shortLabel: name.split("/").pop() || name,
+            description: m?.description || "",
+            supportsGrounding: false,
+          } as AIModel
+        })
+        console.log("Ollama: mapped models", mapped)
+        if (mapped.length > 0) {
+          setModels(mapped)
+          setDraft(d => {
+            const exists = mapped.find(mm => mm.id === d.modelId)
+            if (exists) return d
+            return { ...d, modelId: mapped[0].id }
+          })
+        }
+      } catch {
+        // Log the error to help debugging
+        console.error("Ollama: failed to fetch models")
+      }
+    }
+    fetchOllamaModels()
+    return () => { mounted = false }
+  }, [draft.provider, draft.customBaseUrl])
 
   return (
     <div

@@ -301,29 +301,52 @@ You have live web access. For this note type, include 1–2 real source citation
   const userMessage = `${langDirective}<note_to_enrich>${safeText}</note_to_enrich>${urlContext}${categoryContext}${forcedTypeContext}${globalContext}`
 
   const baseUrl = getBaseUrl(config)
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: getProviderHeaders(config),
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userMessage },
-      ],
-      // OpenAI search-preview models reject both response_format AND temperature;
-      // when web_search_options is present, omit both and rely on the schemaHint
-      // in the system prompt to get structured JSON output.
-      ...(webSearchOptions === undefined
-        ? {
-            response_format: useStrictSchema
-              ? { type: "json_schema", json_schema: JSON_SCHEMA }
-              : { type: "json_object" },
-            temperature: 0.1,
-          }
-        : { web_search_options: webSearchOptions }),
-    }),
-  })
 
+  // For Ollama or when `customBaseUrl` points to localhost, route requests
+  // through the server proxy to avoid CORS/CSP issues in the browser.
+  const normalizedBase = baseUrl.replace(/\/+$/, "")
+  const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
+  const tryEndpoints =
+    config.provider === "ollama" || isLocalBase
+      ? ["/api/ollama"]
+      : [
+          `${normalizedBase}/v1/chat/completions`,
+          `${normalizedBase}/chat/completions`,
+        ]
+
+  let response: Response | null = null
+  let lastError: unknown = null
+  for (const ep of tryEndpoints) {
+    try {
+      response = await fetch(ep, {
+        method: "POST",
+        headers: getProviderHeaders(config),
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user",   content: userMessage },
+          ],
+          ...(webSearchOptions === undefined
+            ? {
+                response_format: useStrictSchema
+                  ? { type: "json_schema", json_schema: JSON_SCHEMA }
+                  : { type: "json_object" },
+                temperature: 0.1,
+              }
+            : { web_search_options: webSearchOptions }),
+        }),
+      })
+      if (response) break
+    } catch (err) {
+      lastError = err
+      response = null
+    }
+  }
+
+  if (!response) {
+    throw new Error(`AI enrich error (${config.provider}): network error or no reachable endpoint. ${String(lastError ?? "")}`)
+  }
   if (!response.ok) {
     const err = await response.text()
     throw new Error(`AI enrich error (${config.provider}) ${response.status}: ${err}`)
