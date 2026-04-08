@@ -121,6 +121,7 @@ export function ProjectSidebar({
   const currentPreset = getPreset(draft.provider)
   const [models, setModels] = useState<AIModel[]>(() => getModelsForProvider(draft.provider))
   const selectedModel = models.find(m => m.id === draft.modelId) || models[0] || undefined
+  const displayModelLabel = draft.provider === "ollama" ? draft.modelId : (selectedModel?.label ?? draft.modelId)
 
   useEffect(() => {
     // Initialize from static list and fetch dynamic models for Ollama
@@ -445,7 +446,7 @@ export function ProjectSidebar({
                         className="flex w-full items-center justify-between rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-2 text-left hover:bg-white/[0.07] focus:outline-none transition-colors"
                       >
                         <div>
-                          <div className="font-mono text-[11px] font-bold text-foreground">{selectedModel?.label ?? draft.modelId}</div>
+                          <div className="font-mono text-[11px] font-bold text-foreground">{displayModelLabel}</div>
                           <div className="font-mono text-[9px] text-muted-foreground mt-0.5">{selectedModel?.description ?? "Custom model ID"}</div>
                         </div>
                         <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${modelOpen ? "rotate-180" : ""}`} />
