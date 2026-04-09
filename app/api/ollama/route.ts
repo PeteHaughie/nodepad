@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
+
 export const runtime = "nodejs"
 
 const DEFAULT_OLLAMA = process.env.OLLAMA_BASE_URL || "http://localhost:11434"
