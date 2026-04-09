@@ -304,21 +304,26 @@ You have live web access. For this note type, include 1–2 real source citation
 
   // For Ollama or when `customBaseUrl` points to localhost, route requests
   // through the server proxy to avoid CORS/CSP issues in the browser.
-  const normalizedBase = baseUrl.replace(/\/+$/, "")
+  const normalizedBase = baseUrl.replace(new RegExp('/+$'), "")
   const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
   const tryEndpoints =
     config.provider === "ollama" || isLocalBase
       ? ["/api/ollama"]
-      : [
-          `${normalizedBase}/v1/chat/completions`,
-          `${normalizedBase}/chat/completions`,
-        ]
+      : ["/v1/chat/completions", "/chat/completions"]
+
+  function joinEndpoint(base: string, path: string) {
+    if (base.endsWith("/v1") && path.startsWith("/v1")) {
+      path = path.slice(3)
+    }
+    return base + path
+  }
 
   let response: Response | null = null
   let lastError: unknown = null
   for (const ep of tryEndpoints) {
+    const url = ep.startsWith("/") ? (ep === "/api/ollama" ? ep : joinEndpoint(normalizedBase, ep)) : ep
     try {
-      response = await fetch(ep, {
+      response = await fetch(url, {
         method: "POST",
         headers: getProviderHeaders(config),
         body: JSON.stringify({
@@ -337,7 +342,12 @@ You have live web access. For this note type, include 1–2 real source citation
             : { web_search_options: webSearchOptions }),
         }),
       })
-      if (response) break
+      if (response.ok) break
+      if (response.status === 404 || response.status === 405) {
+        response = null
+        continue
+      }
+      break
     } catch (err) {
       lastError = err
       response = null

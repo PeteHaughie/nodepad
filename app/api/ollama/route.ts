@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from "next/server"
 
 const DEFAULT_OLLAMA = process.env.OLLAMA_BASE_URL || "http://localhost:11434"
 
-async function forwardToOllama(body: any, forwardAuth?: string) {
-  const base = DEFAULT_OLLAMA.replace(/\/+$/, "")
+function isLocalHost(raw: string) {
+  try {
+    const u = new URL(raw)
+    const h = u.hostname.toLowerCase()
+    return h === "localhost" || h === "127.0.0.1" || h === "::1"
+  } catch {
+    return false
+  }
+}
+
+async function forwardToOllama(body: any, forwardAuth?: string, providedBase?: string) {
+  const baseCandidate = (providedBase || DEFAULT_OLLAMA).replace(new RegExp('/+$'), "")
+  if (!baseCandidate) throw new Error("No base URL provided")
+
+  // Disallow non-local remote hosts in production
+  if (!isLocalHost(baseCandidate) && process.env.NODE_ENV === "production") {
+    throw new Error("Remote baseUrl not allowed in production")
+  }
+
+  const base = baseCandidate
   const tryEndpoints = [`${base}/v1/chat/completions`, `${base}/chat/completions`]
 
   // Try to fetch available models and ensure the requested model exists.
@@ -38,13 +56,13 @@ async function forwardToOllama(body: any, forwardAuth?: string) {
         },
         body: JSON.stringify(body),
       })
-      // Return successful or error response as JSON/text caller can handle
       const text = await res.text()
-      try {
-        return { ok: res.ok, status: res.status, json: JSON.parse(text) }
-      } catch {
-        return { ok: res.ok, status: res.status, text }
-      }
+      let parsed: any = null
+      try { parsed = JSON.parse(text) } catch { /* not JSON */ }
+      if (res.ok) return { ok: res.ok, status: res.status, json: parsed, text: parsed ? undefined : text }
+      // If route not found, try next candidate
+      if (res.status === 404 || res.status === 405) continue
+      return { ok: res.ok, status: res.status, json: parsed, text: parsed ? undefined : text }
     } catch (err) {
       lastErr = err
     }
@@ -56,7 +74,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const forwardAuth = req.headers.get("authorization") || undefined
-    const result = await forwardToOllama(body, forwardAuth)
+    const providedBase = (body && body.baseUrl) ? String(body.baseUrl) : undefined
+    const result = await forwardToOllama(body, forwardAuth, providedBase)
     if (result.json) return NextResponse.json(result.json, { status: result.status })
     if (result.text) return new NextResponse(result.text, { status: result.status })
     return NextResponse.json({ error: "Unknown response from Ollama" }, { status: 502 })

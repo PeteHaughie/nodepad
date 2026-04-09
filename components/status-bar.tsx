@@ -135,7 +135,9 @@ export function StatusBar({
                 <div className="flex items-center gap-3">
                   {typeCounts.map(([type, count]) => {
                     const config =
-                      (CONTENT_TYPE_CONFIG as Record<string, any>)[type] ?? { accentVar: "var(--type-general)", label: type }
+                      type in CONTENT_TYPE_CONFIG
+                        ? CONTENT_TYPE_CONFIG[type as keyof typeof CONTENT_TYPE_CONFIG]
+                        : { accentVar: "var(--type-general)", label: type }
                     return (
                       <span
                         key={type}

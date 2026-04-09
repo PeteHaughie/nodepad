@@ -211,7 +211,7 @@ export interface AIConfig {
 export function loadAIConfig(): AIConfig | null {
   const s = loadSettings()
   // Allow the local Ollama provider to be used without an API key
-  if (!s.apiKey && s.provider !== "ollama") return null
+  if (!s.apiKey?.trim() && s.provider !== "ollama") return null
   const models = getModelsForProvider(s.provider)
   const model = models.find(m => m.id === s.modelId)
   // Use the matched model's id if found; otherwise fall back to the first model

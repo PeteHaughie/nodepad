@@ -51,21 +51,27 @@ Return ONLY valid JSON:
 {"text": "...", "category": "..."}`
 
   const baseUrl = getBaseUrl(config)
-  const normalizedBase = baseUrl.replace(/\/+$/, "")
+  const normalizedBase = baseUrl.replace(new RegExp('/+$'), "")
   const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
   const tryEndpoints =
     config.provider === "ollama" || isLocalBase
       ? ["/api/ollama"]
-      : [
-          `${normalizedBase}/v1/chat/completions`,
-          `${normalizedBase}/chat/completions`,
-        ]
+      : ["/v1/chat/completions", "/chat/completions"]
+
+  function joinEndpoint(base: string, path: string) {
+    // Avoid duplicating /v1 when base already ends with it
+    if (base.endsWith("/v1") && path.startsWith("/v1")) {
+      path = path.slice(3)
+    }
+    return base + path
+  }
 
   let response: Response | null = null
   let lastError: unknown = null
   for (const ep of tryEndpoints) {
+    const url = ep.startsWith("/") ? (ep === "/api/ollama" ? ep : joinEndpoint(normalizedBase, ep)) : ep
     try {
-      response = await fetch(ep, {
+      response = await fetch(url, {
         method: "POST",
         headers: getProviderHeaders(config),
         body: JSON.stringify({
@@ -75,7 +81,14 @@ Return ONLY valid JSON:
           temperature: 0.7,
         }),
       })
-      if (response) break
+      if (response.ok) break
+      // If the route is missing, try the next candidate
+      if (response.status === 404 || response.status === 405) {
+        response = null
+        continue
+      }
+      // Other non-ok responses should surface immediately
+      break
     } catch (err) {
       lastError = err
       response = null

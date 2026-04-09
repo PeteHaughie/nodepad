@@ -130,22 +130,20 @@ export function ProjectSidebar({
     async function fetchOllamaModels() {
       if (draft.provider !== "ollama") return
       try {
-        console.log("Ollama: fetching models from", draft.customBaseUrl || "/api/ollama/models")
+        if (process.env.NODE_ENV !== "production") console.log("Ollama: fetching models from", draft.customBaseUrl || "/api/ollama/models")
         const res = await fetch("/api/ollama/models", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ baseUrl: draft.customBaseUrl }),
         })
         if (!mounted) return
-        console.log("Ollama: response status", res.status)
         if (!res.ok) {
-          console.warn("Ollama: non-ok response", res.status)
+          if (process.env.NODE_ENV !== "production") console.warn("Ollama: non-ok response", res.status)
           return
         }
         const json = await res.json()
-        console.log("Ollama: raw models response", json)
+        if (process.env.NODE_ENV !== "production") console.log("Ollama: raw models response", json)
         const list = Array.isArray(json) ? json : json.models ?? json.data ?? []
-        console.log("Ollama: extracted list length", Array.isArray(list) ? list.length : 0)
         const mapped = list.map((m: any) => {
           const name = m?.name || m?.model || m?.id || String(m)
           return {
@@ -156,7 +154,7 @@ export function ProjectSidebar({
             supportsGrounding: false,
           } as AIModel
         })
-        console.log("Ollama: mapped models", mapped)
+        if (process.env.NODE_ENV !== "production") console.log("Ollama: mapped models", mapped)
         if (mapped.length > 0) {
           setModels(mapped)
           setDraft(d => {
@@ -165,9 +163,8 @@ export function ProjectSidebar({
             return { ...d, modelId: mapped[0].id }
           })
         }
-      } catch {
-        // Log the error to help debugging
-        console.error("Ollama: failed to fetch models")
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.error("Ollama: failed to fetch models", err)
       }
     }
     fetchOllamaModels()
