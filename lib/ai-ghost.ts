@@ -71,15 +71,20 @@ Return ONLY valid JSON:
   for (const ep of tryEndpoints) {
     const url = ep.startsWith("/") ? (ep === "/api/ollama" ? ep : joinEndpoint(normalizedBase, ep)) : ep
     try {
+      // Include normalizedBase when routing through the local proxy so the
+      // server can forward to a custom baseUrl when configured by the user.
+      const payload = {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      } as Record<string, unknown>
+      if (url === "/api/ollama") payload.baseUrl = normalizedBase
+
       response = await fetch(url, {
         method: "POST",
         headers: getProviderHeaders(config),
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
-          temperature: 0.7,
-        }),
+        body: JSON.stringify(payload),
       })
       if (response.ok) break
       // If the route is missing, try the next candidate

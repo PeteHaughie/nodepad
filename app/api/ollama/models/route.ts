@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+export const runtime = "nodejs"
+
 const DEFAULT_OLLAMA = process.env.OLLAMA_BASE_URL || "http://localhost:11434"
 
 function isLocalHost(raw: string) {
@@ -12,10 +14,15 @@ function isLocalHost(raw: string) {
   }
 }
 
+function normalizeOllamaBase(base: string) {
+  const trimmed = base.replace(/\/+$/, "")
+  return trimmed.replace(/\/v1$/i, "").replace(/\/+$/, "")
+}
 async function fetchModelsFrom(base: string) {
+  const normalizedBase = normalizeOllamaBase(base)
   const tryUrls = [
-    `${base.replace(/\/+$/, "")}/v1/models`,
-    `${base.replace(/\/+$/, "")}/models`,
+    `${normalizedBase}/v1/models`,
+    `${normalizedBase}/models`,
   ]
   for (const url of tryUrls) {
     try {

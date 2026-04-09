@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+export const runtime = "nodejs"
+
 const DEFAULT_OLLAMA = process.env.OLLAMA_BASE_URL || "http://localhost:11434"
 
 function isLocalHost(raw: string) {
@@ -21,7 +23,7 @@ async function forwardToOllama(body: any, forwardAuth?: string, providedBase?: s
     throw new Error("Remote baseUrl not allowed in production")
   }
 
-  const base = baseCandidate
+  const base = baseCandidate.replace(/\/v1$/i, "")
   const tryEndpoints = [`${base}/v1/chat/completions`, `${base}/chat/completions`]
 
   // Try to fetch available models and ensure the requested model exists.
@@ -72,10 +74,11 @@ async function forwardToOllama(body: any, forwardAuth?: string, providedBase?: s
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const forwardAuth = req.headers.get("authorization") || undefined
-    const providedBase = (body && body.baseUrl) ? String(body.baseUrl) : undefined
-    const result = await forwardToOllama(body, forwardAuth, providedBase)
+    const { baseUrl, ...sanitizedBody } = (body && typeof body === "object") ? body as Record<string, any> : {}
+    const providedBase = baseUrl ? String(baseUrl) : undefined
+    const result = await forwardToOllama(sanitizedBody, forwardAuth, providedBase)
     if (result.json) return NextResponse.json(result.json, { status: result.status })
     if (result.text) return new NextResponse(result.text, { status: result.status })
     return NextResponse.json({ error: "Unknown response from Ollama" }, { status: 502 })

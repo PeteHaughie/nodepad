@@ -323,24 +323,27 @@ You have live web access. For this note type, include 1–2 real source citation
   for (const ep of tryEndpoints) {
     const url = ep.startsWith("/") ? (ep === "/api/ollama" ? ep : joinEndpoint(normalizedBase, ep)) : ep
     try {
+      const payload = {
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user",   content: userMessage },
+        ],
+        ...(webSearchOptions === undefined
+          ? {
+              response_format: useStrictSchema
+                ? { type: "json_schema", json_schema: JSON_SCHEMA }
+                : { type: "json_object" },
+              temperature: 0.1,
+            }
+          : { web_search_options: webSearchOptions }),
+      } as Record<string, unknown>
+      if (url === "/api/ollama") payload.baseUrl = normalizedBase
+
       response = await fetch(url, {
         method: "POST",
         headers: getProviderHeaders(config),
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user",   content: userMessage },
-          ],
-          ...(webSearchOptions === undefined
-            ? {
-                response_format: useStrictSchema
-                  ? { type: "json_schema", json_schema: JSON_SCHEMA }
-                  : { type: "json_object" },
-                temperature: 0.1,
-              }
-            : { web_search_options: webSearchOptions }),
-        }),
+        body: JSON.stringify(payload),
       })
       if (response.ok) break
       if (response.status === 404 || response.status === 405) {
