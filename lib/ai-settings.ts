@@ -169,6 +169,7 @@ export const ZAI_MODELS: AIModel[] = [
 export function getModelsForProvider(provider: AIProvider): AIModel[] {
   if (provider === "openai") return OPENAI_MODELS
   if (provider === "zai")    return ZAI_MODELS
+  if (provider === "ollama") return [] // Ollama models are discovered at runtime via the proxy
   return AI_MODELS // openrouter + safe fallback for any stale localStorage value
 }
 
@@ -260,6 +261,17 @@ export function getProviderHeaders(config: AIConfig): Record<string, string> {
 export function getAIHeaders(): Record<string, string> {
   const config = loadAIConfig()
   if (!config) return {}
+  // Ollama is a local provider; its available models are discovered at
+  // runtime by the proxy. Don't fall back to remote provider defaults for
+  // Ollama — preserve the configured model id and assume no grounding.
+  if (config.provider === "ollama") {
+    return {
+      "x-or-key": config.apiKey,
+      "x-or-model": config.modelId,
+      "x-or-supports-grounding": "false",
+    }
+  }
+
   const models = getModelsForProvider(config.provider)
   const model = models.find(m => m.id === config.modelId) || AI_MODELS.find(m => m.id === DEFAULT_MODEL_ID)!
   return {
