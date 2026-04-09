@@ -54,8 +54,17 @@ async function fetchModelsFrom(base: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
-    const provided = (body?.baseUrl as string) || DEFAULT_OLLAMA
+    const requestedBaseUrl = typeof body?.baseUrl === "string" ? body.baseUrl.trim() : ""
+    const provided = requestedBaseUrl || DEFAULT_OLLAMA
     if (!provided) return NextResponse.json({ models: [] })
+
+    // Validate that `provided` is an absolute URL early and return 400 for bad input.
+    try {
+      // Will throw for non-absolute/invalid URLs
+      new URL(provided)
+    } catch {
+      return NextResponse.json({ error: "Invalid baseUrl: must be an absolute URL (include scheme)" }, { status: 400 })
+    }
 
     // Do not allow arbitrary remote hosts in production — limit to local dev.
     if (!isLocalHost(provided) && process.env.NODE_ENV === "production") {

@@ -1,6 +1,7 @@
 "use client"
 
 import { loadAIConfig, getBaseUrl, getProviderHeaders } from "@/lib/ai-settings"
+import { normalizeBaseUrl, buildTryEndpoints, joinEndpoint } from "@/lib/ai-utils"
 
 export interface GhostContext {
   text: string
@@ -51,20 +52,8 @@ Return ONLY valid JSON:
 {"text": "...", "category": "..."}`
 
   const baseUrl = getBaseUrl(config)
-  const normalizedBase = baseUrl.replace(new RegExp('/+$'), "")
-  const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
-  const tryEndpoints =
-    config.provider === "ollama" || isLocalBase
-      ? ["/api/ollama"]
-      : ["/v1/chat/completions", "/chat/completions"]
-
-  function joinEndpoint(base: string, path: string) {
-    // Avoid duplicating /v1 when base already ends with it
-    if (base.endsWith("/v1") && path.startsWith("/v1")) {
-      path = path.slice(3)
-    }
-    return base + path
-  }
+  const normalizedBase = normalizeBaseUrl(baseUrl)
+  const tryEndpoints = buildTryEndpoints(config.provider, normalizedBase)
 
   let response: Response | null = null
   let lastError: unknown = null

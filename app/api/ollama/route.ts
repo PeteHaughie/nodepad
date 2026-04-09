@@ -17,11 +17,13 @@ function isLocalHost(raw: string) {
 
 async function forwardToOllama(body: any, forwardAuth?: string, providedBase?: string) {
   const baseCandidate = (providedBase || DEFAULT_OLLAMA).replace(new RegExp('/+$'), "")
-  if (!baseCandidate) throw new Error("No base URL provided")
+  if (!baseCandidate) {
+    return { ok: false, status: 400, json: { error: "No base URL provided" } }
+  }
 
-  // Disallow non-local remote hosts in production
+  // Disallow non-local remote hosts in production — return 403 rather than throwing.
   if (!isLocalHost(baseCandidate) && process.env.NODE_ENV === "production") {
-    throw new Error("Remote baseUrl not allowed in production")
+    return { ok: false, status: 403, json: { error: "Remote baseUrl not allowed in production" } }
   }
 
   const base = baseCandidate.replace(/\/v1$/i, "")

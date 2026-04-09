@@ -867,7 +867,7 @@ export default function Page() {
           const showModel = (settings.apiKey && settings.apiKey.trim() !== "") || settings.provider === "ollama"
           const modelLabelToShow = showModel
             ? (settings.provider === "ollama"
-                ? `${getPreset(settings.provider).label.split(" ")[0]} - ${settings.modelId}`
+                ? `Ollama - ${settings.modelId}`
                 : currentModel.shortLabel)
             : undefined
 

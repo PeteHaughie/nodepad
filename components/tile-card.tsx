@@ -133,7 +133,9 @@ export const TileCard = memo(function TileCard({
     })
   }, [block.timestamp, isMounted])
 
-  const config = CONTENT_TYPE_CONFIG[block.contentType] ?? CONTENT_TYPE_CONFIG.general
+  const config = Object.hasOwn(CONTENT_TYPE_CONFIG, block.contentType)
+    ? CONTENT_TYPE_CONFIG[block.contentType]
+    : CONTENT_TYPE_CONFIG.general
   const Icon = config.icon ?? (() => null)
   const accent = config.accentVar ?? "var(--type-general)"
   const isTask = block.contentType === "task"

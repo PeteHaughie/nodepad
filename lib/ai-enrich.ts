@@ -2,6 +2,7 @@
 
 import { detectContentType } from "@/lib/detect-content-type"
 import { loadAIConfig, getBaseUrl, getProviderHeaders, getModelsForProvider } from "@/lib/ai-settings"
+import { normalizeBaseUrl, buildTryEndpoints, joinEndpoint } from "@/lib/ai-utils"
 import type { ContentType } from "@/lib/content-types"
 
 // ── Language detection ────────────────────────────────────────────────────────
@@ -302,21 +303,9 @@ You have live web access. For this note type, include 1–2 real source citation
 
   const baseUrl = getBaseUrl(config)
 
-  // For Ollama or when `customBaseUrl` points to localhost, route requests
-  // through the server proxy to avoid CORS/CSP issues in the browser.
-  const normalizedBase = baseUrl.replace(new RegExp('/+$'), "")
-  const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(normalizedBase)
-  const tryEndpoints =
-    config.provider === "ollama" || isLocalBase
-      ? ["/api/ollama"]
-      : ["/v1/chat/completions", "/chat/completions"]
-
-  function joinEndpoint(base: string, path: string) {
-    if (base.endsWith("/v1") && path.startsWith("/v1")) {
-      path = path.slice(3)
-    }
-    return base + path
-  }
+  // Normalize base and select candidate endpoints (may include the local proxy)
+  const normalizedBase = normalizeBaseUrl(baseUrl)
+  const tryEndpoints = buildTryEndpoints(config.provider, normalizedBase)
 
   let response: Response | null = null
   let lastError: unknown = null
