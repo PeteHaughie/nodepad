@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { normalizeBaseUrl } from "@/lib/ai-utils"
 
 
 export const runtime = "nodejs"
@@ -16,9 +17,19 @@ function isLocalHost(raw: string) {
 }
 
 async function forwardToOllama(body: any, forwardAuth?: string, providedBase?: string) {
-  const baseCandidate = (providedBase || DEFAULT_OLLAMA).replace(new RegExp('/+$'), "")
+  const baseCandidate = normalizeBaseUrl(providedBase || DEFAULT_OLLAMA)
   if (!baseCandidate) {
     return { ok: false, status: 400, json: { error: "No base URL provided" } }
+  }
+
+  // Validate that baseCandidate is an absolute http(s) URL — return 400 rather than a confusing 502.
+  try {
+    const parsed = new URL(baseCandidate)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, status: 400, json: { error: "Invalid baseUrl: must use http or https scheme" } }
+    }
+  } catch {
+    return { ok: false, status: 400, json: { error: "Invalid baseUrl: must be an absolute URL (include scheme)" } }
   }
 
   // Disallow non-local remote hosts in production — return 403 rather than throwing.

@@ -1,5 +1,7 @@
+import type { AIProvider } from "@/lib/ai-settings"
+
 export function normalizeBaseUrl(raw: string): string {
-  return raw.replace(/\/+$/, "")
+  return raw.trim().replace(/\/+$/, "")
 }
 
 export function isLocalBase(raw: string): boolean {
@@ -13,7 +15,7 @@ export function isLocalBase(raw: string): boolean {
   }
 }
 
-export function buildTryEndpoints(provider: string, normalizedBase: string): string[] {
+export function buildTryEndpoints(provider: AIProvider, normalizedBase: string): string[] {
   return provider === "ollama" || isLocalBase(normalizedBase)
     ? ["/api/ollama"]
     : ["/v1/chat/completions", "/chat/completions"]
