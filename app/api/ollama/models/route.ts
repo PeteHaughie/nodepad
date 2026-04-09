@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Do not allow arbitrary remote hosts in production — limit to local dev.
     if (!isLocalHost(provided) && process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "Remote baseUrl not allowed" }, { status: 400 })
+      return NextResponse.json({ error: "Remote baseUrl not allowed" }, { status: 403 })
     }
 
     const models = await fetchModelsFrom(provided)
