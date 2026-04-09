@@ -158,7 +158,7 @@ export function ProjectSidebar({
         if (mapped.length > 0) {
           setModels(mapped)
           setDraft(d => {
-            const exists = mapped.find(mm => mm.id === d.modelId)
+            const exists = mapped.find((mm: { id: string }) => mm.id === d.modelId)
             if (exists) return d
             return { ...d, modelId: mapped[0].id }
           })
