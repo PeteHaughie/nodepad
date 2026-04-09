@@ -143,7 +143,7 @@ export function GraphDetailPanel({
   }
 
   const config = CONTENT_TYPE_CONFIG[block.contentType] ?? CONTENT_TYPE_CONFIG.general
-  const Icon   = config.icon ?? (() => null)
+  const Icon   = config.icon
   const accent = config.accentVar ?? "var(--type-general)"
 
   // Header colour — same logic as tile-card
