@@ -119,13 +119,14 @@ export function ProjectSidebar({
   }
 
   const currentPreset = getPreset(draft.provider)
-  const [models, setModels] = useState<AIModel[]>(() => getModelsForProvider(draft.provider))
+  const [models, setModels] = useState<AIModel[]>(() => draft.provider === "ollama" ? [] : getModelsForProvider(draft.provider))
   const selectedModel = models.find(m => m.id === draft.modelId) || models[0] || undefined
   const displayModelLabel = draft.provider === "ollama" ? draft.modelId : (selectedModel?.label ?? draft.modelId)
 
   useEffect(() => {
     // Initialize from static list and fetch dynamic models for Ollama
-    setModels(getModelsForProvider(draft.provider))
+    if (draft.provider === "ollama") setModels([])
+    else setModels(getModelsForProvider(draft.provider))
     let mounted = true
     async function fetchOllamaModels() {
       if (draft.provider !== "ollama") return
