@@ -58,12 +58,15 @@ export async function POST(req: NextRequest) {
     const provided = requestedBaseUrl || DEFAULT_OLLAMA
     if (!provided) return NextResponse.json({ models: [] })
 
-    // Validate that `provided` is an absolute URL early and return 400 for bad input.
+    // Validate that `provided` is an absolute HTTP(S) URL early and return 400 for bad input.
     try {
       // Will throw for non-absolute/invalid URLs
-      new URL(provided)
+      const parsed = new URL(provided)
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return NextResponse.json({ error: "Invalid baseUrl: only http:// and https:// URLs are allowed" }, { status: 400 })
+      }
     } catch {
-      return NextResponse.json({ error: "Invalid baseUrl: must be an absolute URL (include scheme)" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid baseUrl: must be an absolute URL using http:// or https://" }, { status: 400 })
     }
 
     // Do not allow arbitrary remote hosts in production — limit to local dev.
